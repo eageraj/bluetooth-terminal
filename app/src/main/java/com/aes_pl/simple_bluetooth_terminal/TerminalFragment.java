@@ -41,6 +41,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private String deviceAddress;
     private SerialService service;
 
+    private PeriodicSender periodicSender;
+
     private TextView receiveText;
     private TextView sendText;
     private TextUtil.HexWatcher hexWatcher;
@@ -113,6 +115,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     public void onServiceConnected(ComponentName name, IBinder binder) {
         service = ((SerialService.SerialBinder) binder).getService();
         service.attach(this);
+        periodicSender = new PeriodicSender(service, () ->
+            getActivity().runOnUiThread(() -> status("periodic send triggered")));
+
         if(initialStart && isResumed()) {
             initialStart = false;
             getActivity().runOnUiThread(this::connect);
@@ -218,6 +223,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private void disconnect() {
         connected = Connected.False;
         service.disconnect();
+        periodicSender.stop();
     }
 
     private void send(String str) {
@@ -276,7 +282,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     }
 
     private void status(String str) {
-        SpannableStringBuilder spn = new SpannableStringBuilder(str + '\n');
+        String timestamp = new java.text.SimpleDateFormat("dd/MM HH:mm:ss", java.util.Locale.getDefault()).format(new java.util.Date());
+        SpannableStringBuilder spn = new SpannableStringBuilder(timestamp + " " + str + '\n');
         spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         receiveText.append(spn);
     }
@@ -306,6 +313,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     public void onSerialConnect() {
         status("connected");
         connected = Connected.True;
+        periodicSender.start();
     }
 
     @Override

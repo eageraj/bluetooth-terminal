@@ -7,6 +7,9 @@ class Constants {
     static final String NOTIFICATION_CHANNEL = BuildConfig.APPLICATION_ID + ".Channel";
     static final String INTENT_CLASS_MAIN_ACTIVITY = BuildConfig.APPLICATION_ID + ".MainActivity";
 
+    static final String CLOSE_RELAY =  "A0 01 01 A2";
+    static final String OPEN_RELAY = "A0 01 00 A1";
+
     // values have to be unique within each app
     static final int NOTIFY_MANAGER_START_FOREGROUND_SERVICE = 1001;
 
