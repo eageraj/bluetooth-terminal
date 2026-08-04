@@ -1,6 +1,6 @@
 [versions]
 appcompat = "1.7.1"
-gradle = "9.1.0"
+gradle = "9.3.1"
 material = "1.13.0"
 
 [libraries]

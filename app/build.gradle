@@ -7,7 +7,7 @@ android {
         minSdk 21
         vectorDrawables.useSupportLibrary true
 
-        applicationId "de.kai_morich.simple_bluetooth_terminal"
+        applicationId "com.aes_pl.simple_bluetooth_terminal"
         versionCode 1
         versionName "1.0"
     }
@@ -24,7 +24,7 @@ android {
     buildFeatures {
         buildConfig true
     }
-    namespace 'de.kai_morich.simple_bluetooth_terminal'
+    namespace 'com.aes_pl.simple_bluetooth_terminal'
 }
 
 dependencies {
