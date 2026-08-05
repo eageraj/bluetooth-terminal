@@ -105,9 +105,10 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public void onResume() {
         super.onResume();
+        status("onResume");
         if(initialStart && service != null) {
             initialStart = false;
-            getActivity().runOnUiThread(this::connect);
+            getActivity().runOnUiThread(() -> this.connect("reconnecting (onResume)..."));
         }
     }
 
@@ -115,17 +116,23 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     public void onServiceConnected(ComponentName name, IBinder binder) {
         service = ((SerialService.SerialBinder) binder).getService();
         service.attach(this);
-        periodicSender = new PeriodicSender(service, () ->
-            getActivity().runOnUiThread(() -> status("periodic send triggered")));
+        status("Starting with period " + Constants.PERIODIC_INTERVAL_MS/1000 + " secs.");
+        periodicSender = new PeriodicSender(getActivity().getApplicationContext(), service, () -> {
+            Activity activity = getActivity();
+            java.util.Date date = new java.util.Date();
+            if (activity != null) activity.runOnUiThread(() -> status(date, "periodic send triggered"));
+        });
 
         if(initialStart && isResumed()) {
             initialStart = false;
-            getActivity().runOnUiThread(this::connect);
+            // getActivity().runOnUiThread(this::connect);
+            getActivity().runOnUiThread(() ->this.connect("connecting..."));
         }
     }
 
     @Override
     public void onServiceDisconnected(ComponentName name) {
+        status("Service " + name + " has disconnected.");
         service = null;
     }
 
@@ -207,11 +214,11 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     /*
      * Serial + UI
      */
-    private void connect() {
+    private void connect(String msg) {
         try {
             BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
             BluetoothDevice device = bluetoothAdapter.getRemoteDevice(deviceAddress);
-            status("connecting...");
+            status(msg);
             connected = Connected.Pending;
             SerialSocket socket = new SerialSocket(getActivity().getApplicationContext(), device);
             service.connect(socket);
@@ -281,11 +288,16 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         receiveText.append(spn);
     }
 
-    private void status(String str) {
-        String timestamp = new java.text.SimpleDateFormat("dd/MM HH:mm:ss", java.util.Locale.getDefault()).format(new java.util.Date());
+
+    private void status(java.util.Date date, String str) {
+        String timestamp = new java.text.SimpleDateFormat("dd/MM HH:mm:ss", java.util.Locale.getDefault()).format(date);
         SpannableStringBuilder spn = new SpannableStringBuilder(timestamp + " " + str + '\n');
         spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         receiveText.append(spn);
+    }
+
+    private void status(String str) {
+        status(new java.util.Date(), str);
     }
 
     /*

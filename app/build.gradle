@@ -4,7 +4,7 @@ android {
     compileSdk 36
     defaultConfig {
         targetSdk 36
-        minSdk 21
+        minSdk 23
         vectorDrawables.useSupportLibrary true
 
         applicationId "com.aes_pl.simple_bluetooth_terminal"

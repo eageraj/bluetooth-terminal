@@ -1,51 +1,73 @@
 package com.aes_pl.simple_bluetooth_terminal;
 
-import static java.lang.Thread.sleep;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.PowerManager;
+
+import androidx.core.content.ContextCompat;
 
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
 class PeriodicSender {
 
-    private static final long INTERVAL_MS = 1 * 60 * 1000L;
+    private static final String ACTION_SEND = BuildConfig.APPLICATION_ID + ".PeriodicSend";
 
+    private final Context context;
     private final SerialService service;
     private final Runnable onSent;
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-    private ScheduledFuture<?> future;
+    private final AlarmManager alarmManager;
+    private final PendingIntent pendingIntent;
+    private final PowerManager.WakeLock wakeLock;
 
-    PeriodicSender(SerialService service, Runnable onSent) {
+    private final BroadcastReceiver receiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            wakeLock.acquire(10_000L); // 10s max, covers write + sleep(1000) + write
+            Executors.newSingleThreadExecutor().execute(() -> {
+                try {
+                    service.write(hexToBytes(Constants.CLOSE_RELAY));
+                    Thread.sleep(1000);
+                    service.write(hexToBytes(Constants.OPEN_RELAY));
+                    if (onSent != null) onSent.run();
+                } catch (Exception ignored) {
+                } finally {
+                    if (wakeLock.isHeld()) wakeLock.release();
+                }
+                scheduleNext();
+            });
+        }
+    };
+
+    PeriodicSender(Context context, SerialService service, Runnable onSent) {
+        this.context = context;
         this.service = service;
         this.onSent = onSent;
+        alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(ACTION_SEND).setPackage(context.getPackageName());
+        pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE);
+        wakeLock = ((PowerManager) context.getSystemService(Context.POWER_SERVICE))
+                .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, BuildConfig.APPLICATION_ID + ":PeriodicSender");
     }
 
     void start() {
-        future = scheduler.scheduleWithFixedDelay(this::send, initialDelay(), INTERVAL_MS, TimeUnit.MILLISECONDS);
-    }
-
-    private long initialDelay() {
-        long now = System.currentTimeMillis();
-        return INTERVAL_MS - (now % INTERVAL_MS);
+        ContextCompat.registerReceiver(context, receiver, new IntentFilter(ACTION_SEND), ContextCompat.RECEIVER_NOT_EXPORTED);
+        scheduleNext();
     }
 
     void stop() {
-        if (future != null) future.cancel(false);
+        alarmManager.cancel(pendingIntent);
+        try { context.unregisterReceiver(receiver); } catch (Exception ignored) {}
+        if (wakeLock.isHeld()) wakeLock.release();
     }
 
-    private void send() {
-        long next = INTERVAL_MS - (System.currentTimeMillis() % INTERVAL_MS);
-        try {
-            service.write(hexToBytes(Constants.CLOSE_RELAY));
-            sleep(1000);
-            service.write(hexToBytes(Constants.OPEN_RELAY));
-            if (onSent != null) onSent.run();
-        } catch (Exception ignored) {
-        }
-        // reschedule: cancel current and restart with corrected delay
-        if (future != null) future.cancel(false);
-        future = scheduler.scheduleWithFixedDelay(this::send, next, INTERVAL_MS, TimeUnit.MILLISECONDS);
+    private void scheduleNext() {
+        long now = System.currentTimeMillis();
+        long next = now - (now % Constants.PERIODIC_INTERVAL_MS) + Constants.PERIODIC_INTERVAL_MS;
+        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next, pendingIntent);
     }
 
     private static byte[] hexToBytes(String inhex) {
