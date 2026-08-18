@@ -66,7 +66,10 @@ class PeriodicSender {
 
     private void scheduleNext() {
         long now = System.currentTimeMillis();
-        long next = now - (now % Constants.PERIODIC_INTERVAL_MS) + Constants.PERIODIC_INTERVAL_MS;
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        int hour = cal.get(java.util.Calendar.HOUR_OF_DAY);
+        long interval = (hour >= 23 || hour < 8) ? Constants.NIGHTTIME_PERIODIC_INTERVAL_MS : Constants.DAYTIME_PERIODIC_INTERVAL_MS;
+        long next = now - (now % interval) + interval;
         alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next, pendingIntent);
     }
 

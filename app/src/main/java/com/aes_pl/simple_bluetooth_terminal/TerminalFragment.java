@@ -116,7 +116,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     public void onServiceConnected(ComponentName name, IBinder binder) {
         service = ((SerialService.SerialBinder) binder).getService();
         service.attach(this);
-        status("Starting with period " + Constants.PERIODIC_INTERVAL_MS/1000 + " secs.");
+        status("Starting with period " + Constants.DAYTIME_PERIODIC_INTERVAL_MS /1000 + " secs.");
         periodicSender = new PeriodicSender(getActivity().getApplicationContext(), service, () -> {
             Activity activity = getActivity();
             java.util.Date date = new java.util.Date();

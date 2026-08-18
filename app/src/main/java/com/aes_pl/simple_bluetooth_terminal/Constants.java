@@ -12,7 +12,9 @@ class Constants {
 
     // values have to be unique within each app
     static final int NOTIFY_MANAGER_START_FOREGROUND_SERVICE = 1001;
-    static final long PERIODIC_INTERVAL_MS = 15 * 60 * 1000L;
+    static final long DAYTIME_PERIODIC_INTERVAL_MS = 15 * 60 * 1000L;
+    static final long NIGHTTIME_PERIODIC_INTERVAL_MS = 60 * 60 * 1000L;
+
 
     private Constants() {}
 }
